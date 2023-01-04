@@ -16,8 +16,16 @@ ELFManager::~ELFManager() {
     }
 }
 
-int ELFManager::get_elf_symtab(std::shared_ptr<std::vector<Elf_SymbolSection>> symtab) {
-    return read_elf_symbol_section(symtab, SHT_SYMTAB);
+int ELFManager::get_elf_symtab(std::shared_ptr<std::vector<Elf_SymbolSection>> sym_tab) {
+    return read_elf_symbol_section(sym_tab, SHT_SYMTAB);
+}
+
+int ELFManager::get_elf_dyn_symtab(std::shared_ptr<std::vector<Elf_SymbolSection>> dyn_symtab) {
+    return read_elf_symbol_section(dyn_symtab, SHT_DYNSYM);
+}
+
+int ELFManager::get_elf_relsym(std::shared_ptr<std::vector<Elf_RealSymbolSection>> relsym_table) {
+    return read_elf_relsym_section(relsym_table);
 }
 
 int ELFManager::read_elf_symbol_section(
@@ -47,7 +55,7 @@ int ELFManager::read_elf_symbol_section(
         return -3;
     }
     // 段的长度 / 项的长度（对于符号表，每个符号就是一项）
-    int count = sym_section->sh_size / sym_section->sh_entsize;
+    size_t count = sym_section->sh_size / sym_section->sh_entsize;
     symbol_table->resize(count);
     // 提取出符号表中的每个符号
     if (is_32_bit_) {
@@ -83,8 +91,9 @@ int ELFManager::read_elf_symbol_section(
 }
 
 int ELFManager::read_elf_relsym_section(
-    std::shared_ptr<std::vector<Elf_RealSymbolSection>> rel_table, unsigned max_count) {
+    std::shared_ptr<std::vector<Elf_RealSymbolSection>> rel_table) {
     int count = 0;
+    size_t cur_idx = 0;
     int res;
     for (size_t i = 0; i < ehdr_.e_shnum; ++i) {
         if (shdrs_[i].sh_type == SHT_REL || shdrs_[i].sh_type == SHT_RELA) {
@@ -93,8 +102,9 @@ int ELFManager::read_elf_relsym_section(
                 ERROR_LOG("get_elf_relsym_section of malloc failed, err: %s", strerror(errno));
                 return -1;
             }
-            int num = shdrs_[i].sh_size / shdrs_[i].sh_entsize;
+            size_t num = shdrs_[i].sh_size / shdrs_[i].sh_entsize;
             count += num;
+            rel_table->resize(count);
             res = read_elf(shdrs_[i].sh_offset, rel, shdrs_[i].sh_size);
             if (res < 0) {
                 return -2;
@@ -103,32 +113,36 @@ int ELFManager::read_elf_relsym_section(
                 if (shdrs_[i].sh_type == SHT_REL) {
                     Elf32_Rel* prel = reinterpret_cast<Elf32_Rel*>(rel);
                     for (size_t i = 0; i < num; ++i) {
-                        (*rel_table)[i].offset = prel[i].r_offset;
-                        (*rel_table)[i].type = ELF32_R_TYPE(prel[i].r_info);
-                        (*rel_table)[i].symid = ELF32_R_SYM(prel[i].r_info);
+                        (*rel_table)[cur_idx].offset = prel[i].r_offset;
+                        (*rel_table)[cur_idx].type = ELF32_R_TYPE(prel[i].r_info);
+                        (*rel_table)[cur_idx].symid = ELF32_R_SYM(prel[i].r_info);
+                        cur_idx++;
                     }
                 } else {
                     Elf32_Rela* prel = reinterpret_cast<Elf32_Rela*>(rel);
                     for (size_t i = 0; i < num; ++i) {
-                        (*rel_table)[i].offset = prel[i].r_offset;
-                        (*rel_table)[i].type = ELF32_R_TYPE(prel[i].r_info);
-                        (*rel_table)[i].symid = ELF32_R_SYM(prel[i].r_info);
+                        (*rel_table)[cur_idx].offset = prel[i].r_offset;
+                        (*rel_table)[cur_idx].type = ELF32_R_TYPE(prel[i].r_info);
+                        (*rel_table)[cur_idx].symid = ELF32_R_SYM(prel[i].r_info);
+                        cur_idx++;
                     }
                 }
             } else {
                 if (shdrs_[i].sh_type == SHT_REL) {
                     Elf64_Rel* prel = reinterpret_cast<Elf64_Rel*>(rel);
                     for (size_t i = 0; i < num; ++i) {
-                        (*rel_table)[i].offset = prel[i].r_offset;
-                        (*rel_table)[i].type = ELF64_R_TYPE(prel[i].r_info);
-                        (*rel_table)[i].symid = ELF64_R_SYM(prel[i].r_info);
+                        (*rel_table)[cur_idx].offset = prel[i].r_offset;
+                        (*rel_table)[cur_idx].type = ELF64_R_TYPE(prel[i].r_info);
+                        (*rel_table)[cur_idx].symid = ELF64_R_SYM(prel[i].r_info);
+                        cur_idx++;
                     }
                 } else {
                     Elf64_Rela* prel = reinterpret_cast<Elf64_Rela*>(rel);
                     for (size_t i = 0; i < num; ++i) {
-                        (*rel_table)[i].offset = prel[i].r_offset;
-                        (*rel_table)[i].type = ELF64_R_TYPE(prel[i].r_info);
-                        (*rel_table)[i].symid = ELF64_R_SYM(prel[i].r_info);
+                        (*rel_table)[cur_idx].offset = prel[i].r_offset;
+                        (*rel_table)[cur_idx].type = ELF64_R_TYPE(prel[i].r_info);
+                        (*rel_table)[cur_idx].symid = ELF64_R_SYM(prel[i].r_info);
+                        cur_idx++;
                     }
                 }
             }
@@ -157,7 +171,7 @@ int ELFManager::init(const char* file_name) {
     if (res < 0) {
         return -2;
     }
-    DEBUG_LOG("init of read_elf_ehdr success");
+    DEBUG_LOG("init of read_elf_ehdr success, section num: %d", ehdr_.e_shnum);
     // 读取 elf 文件的段表
     // shdrs_ = reinterpret_cast<Elf_Shdr*>(malloc(ehdr_.e_shnum * sizeof(Elf_Shdr)));
     // if (shdrs_ == nullptr) {

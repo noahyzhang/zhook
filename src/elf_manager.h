@@ -1,3 +1,6 @@
+
+#pragma once
+
 #include <elf.h>
 #include <memory>
 #include <vector>
@@ -35,27 +38,30 @@ typedef struct {
 
 class ELFManager {
 public:
+    ELFManager() = default;
     ~ELFManager();
-    ELFManager(const ELFManager&) = delete;
-    ELFManager& operator=(const ELFManager&) = delete;
-    ELFManager(ELFManager&&) = delete;
-    ELFManager& operator=(ELFManager&&) = delete;
 
-    static ELFManager& get_instance() {
-        static ELFManager obj;
-        return obj;
-    }
+    // ELFManager(const ELFManager&) = delete;
+    // ELFManager& operator=(const ELFManager&) = delete;
+    // ELFManager(ELFManager&&) = delete;
+    // ELFManager& operator=(ELFManager&&) = delete;
+
+    // static ELFManager& get_instance() {
+    //     static ELFManager obj;
+    //     return obj;
+    // }
 
     int init(const char* file_name);
     int get_elf_symtab(std::shared_ptr<std::vector<Elf_SymbolSection>> symtab);
+    int get_elf_dyn_symtab(std::shared_ptr<std::vector<Elf_SymbolSection>> dyn_symtab);
+    int get_elf_relsym(std::shared_ptr<std::vector<Elf_RealSymbolSection>> relsym_tab);
 
 
 private:
-    ELFManager() = default;
 
-    int read_elf_symbol_section(std::shared_ptr<std::vector<Elf_SymbolSection>> symtab, unsigned int type);
+    int read_elf_symbol_section(std::shared_ptr<std::vector<Elf_SymbolSection>> sym_tab, unsigned int type);
 
-    int read_elf_relsym_section(std::shared_ptr<std::vector<Elf_RealSymbolSection>> rel_table, unsigned max_count);
+    int read_elf_relsym_section(std::shared_ptr<std::vector<Elf_RealSymbolSection>> relsym_tab);
 
     /**
      * @brief 读取 ELF 文件的文件头
@@ -87,7 +93,7 @@ private:
 private:
     int fd_;  // 文件描述符
     char ident_[EI_NIDENT] = {0};  // ELF 文件头的 ident 字段
-    bool is_32_bit_ = false;  // 是否为 32 位的 ELF 文件
+    bool is_32_bit_{false};  // 是否为 32 位的 ELF 文件
     Elf_Ehdr ehdr_{0};  // ELF 文件头
     std::vector<Elf_Shdr> shdrs_;  // ELF 文件段表数组
 };
