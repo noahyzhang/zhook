@@ -67,4 +67,17 @@ void* HookManager::get_real_func(const char* func_name) {
     return real_func;
 }
 
+int HookManager::get_all_so_info() {
+    // 读取 maps 的每一行
+    FILE* fp = fopen("/proc/self/maps", "r");
+    if (fp == nullptr) {
+        ERROR_LOG("HookManager::get_all_so_info use fopen failed, err: %s", strerror(errno));
+        return -1;
+    }
+    char line[512];
+    while (fgets(line, sizeof(line), fp)) {
+        if (sscanf(line, "%"PRIxPTR"-%*lx %4s %lx %*x:%*x %*d%n", ))
+    }
+}
+
 }  // namespace zhook

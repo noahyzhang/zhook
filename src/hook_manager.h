@@ -18,6 +18,9 @@ public:
     void* get_real_func(const char* func_name);
 
 private:
+    int get_all_so_info();
+
+private:
     bool is_inited_{false};
     BinaryFile* bf_{nullptr};
     HookImpl* hook_impl_{nullptr};
