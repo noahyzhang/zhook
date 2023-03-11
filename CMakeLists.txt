@@ -1,16 +1,16 @@
-cmake_minimum_required(VERSION 2.8.0)
+cmake_minimum_required(VERSION 3.16.3)
 
 project(zhook)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Wall -Werror -fPIC")
 
 include_directories(
-    ./include
-    ./src
+    include
+    src
 )
 
-file(GLOB SRCS
-    ./src/*.cpp
+file(GLOB_RECURSE SRCS
+    src/*.cpp
 )
 
 add_library(zhook SHARED ${SRCS})
